@@ -743,7 +743,12 @@ summary {
 </div>
 <div id="part-7-referrences" class="section level2">
 <h2>Part 7: Referrences</h2>
-<p><a href="https://stackoverflow.com" class="uri">https://stackoverflow.com</a> David M Diez, Christopher D Barr and Mine Cetinkaya-Rundel. “OpenIntro Statistics, Third Edition”. (2016). “Statistics with R Specialization”, by Duke University on Coursera - (ongoing) <a href="https://rpubs.com/Shobha_r/311126" class="uri">https://rpubs.com/Shobha_r/311126</a> <a href="https://www.imdb.com/title/tt1431045/" class="uri">https://www.imdb.com/title/tt1431045/</a> <a href="https://www.rottentomatoes.com/m/deadpool" class="uri">https://www.rottentomatoes.com/m/deadpool</a></p>
+<p><a href="https://stackoverflow.com" class="uri">https://stackoverflow.com</a></p>
+<p>David M Diez, Christopher D Barr and Mine Cetinkaya-Rundel. “OpenIntro Statistics, Third Edition”. (2016).</p>
+<p>“Statistics with R Specialization”, by Duke University on Coursera - (ongoing)</p>
+<p><a href="https://rpubs.com/Shobha_r/311126" class="uri">https://rpubs.com/Shobha_r/311126</a></p>
+<p><a href="https://www.imdb.com/title/tt1431045/" class="uri">https://www.imdb.com/title/tt1431045/</a></p>
+<p><a href="https://www.rottentomatoes.com/m/deadpool" class="uri">https://www.rottentomatoes.com/m/deadpool</a></p>
 </div>
 
 
