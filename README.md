@@ -5,3 +5,5 @@ Your boss has just acquired data about how much audiences and critics like movie
 She is interested in learning what attributes make a movie popular. She is also interested in learning something new about movies. She wants you team to figure it all out.
 
 As part of this project you will complete exploratory data analysis (EDA), modeling, and prediction.
+
+https://saldanha3193.github.io/linearmodellingmoviesdatabase/
