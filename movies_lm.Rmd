@@ -1,0 +1,225 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+library(corrplot)
+library(gridExtra)
+```
+
+### Load data
+
+
+```{r load-data}
+
+load("movies.Rdata")
+
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+The data in this study comprises of movie features and ratings collected mainly from two websites the IMDB and Rotten Tomatoes. The data consists of 651 randomly sampled movies, hence, one can generalize the results to the population of interest. However, no causation can be established because random assignment was not used in this study.
+
+
+
+* * *
+
+## Part 2: Research question
+
+For the subject project we try to investigate what factors determine or influence the popularity of a movie.
+
+For this we will focus on the parameter imdb_rating, this will be our response variable.
+
+The research question is important as it helps the studio invest on similar films and generate maximum revenue on such investments. A movie with good rating on IMDB is likely to be popular and provide other revenue streams like rentals and online streaming. 
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+Data Cleaning:
+- Release days - given the long timespan involved  (1970 to 2014), day of the month was removed to simplify the model.
+-IMDB and Rotten Tomatoes URLs will be removed as they have no significance for this analysis.
+-Similarly Studio variable is a factor variable with a large number of levels (2011).   
+-Movie title, director, actors - These variables could be the subject of additional research: text-based analysis on titles, or considering a director/actor’s popularity at the time the movie was released as potential factors, to name a few. However, this deeper analysis is outside the scope of the course.
+
+```{r}
+movies_df <- movies %>%
+  select(-c(title,studio,director,actor1:actor5,imdb_url,rt_url)) %>%
+  select(-contains("_rel_day")) %>% na.omit()
+
+summary(movies_df)
+        
+movies_df <- mutate(movies_df, log_votes=log(imdb_num_votes))
+x1 <- ggplot(movies_df, aes(x=imdb_num_votes)) + geom_density()
+x2 <- ggplot(movies_df, aes(x=log_votes)) + geom_density()
+grid.arrange(x1,x2, ncol=2)
+
+movies_df <- select(movies_df, -imdb_num_votes)
+
+```
+The summary statistics indicate that some categorical variables have partitioned the dataset very unevenly like top 200 box office and title type, while other like MPAA rating, audience rating and critics have a even partitioning result.
+For the variable imdb_num_votes, it has a wide range of values, in some cases there are few thousands to millions of votes. Hence converting it to powers of 10 by converting it to a logarithmic variable and removing the original imdb_num_votes parameter from the dataframe for further processing.
+
+```{r}
+
+runtime <- ggplot(movies_df, aes(x=runtime)) + geom_histogram(bins = 20)
+imdb_rat <- ggplot(movies_df, aes(x=imdb_rating)) + geom_histogram(bins = 20)
+critics_score <- ggplot(movies_df, aes(x=critics_score)) + geom_histogram(bins = 20)
+audience_score <- ggplot(movies_df, aes(x=audience_score)) + geom_histogram(bins = 20)
+grid.arrange(runtime, imdb_rat,critics_score, audience_score, ncol=2)
+
+```
+
+We notice that there is stronger skewness in the IMDB and Audience scores, which is reasonable given that these are ratings provided by the population.
+
+```{r}
+
+barplot(summary(movies$best_actor_win),main="a) Did any actors ever won an Oscar (no, yes)")
+barplot(summary(movies$best_actress_win),main="b) Did any actresses ever won an Oscar (no, yes)") 
+barplot(summary(movies$best_dir_win),main="c) Did the director ever won an Oscar (no, yes)") 
+barplot(summary(movies$genre,maxsum=6),main="d) Genre of movie (Action & Adventure, Comedy, Documentary, Drama, Horror, Mystery & Suspense, Other")
+barplot(summary(movies$best_pic_win),main="e) Did the movie won a best picture Oscar (no, yes)")
+
+```
+
+For the categorical values barplots were used. From the figures we can seee that The distribution of average runtime of a movie is slightly right skewed.The critics scores are nearly uniformly distributed, but slightly left skewed. The score given by the audience is nearly uniform left skewed distribution. In the barplots we note that there are few Oscar winners in the entire sample, which may not give a represesntative effect of ths variable. We now want to check out the correlation between these variables.
+
+
+```{r}
+#audience score vs critics rating
+gr1 <- ggplot(movies_df, aes(x=audience_score, y=critics_rating))+geom_boxplot()+ ggtitle("Audience score vs. Critics rating")
+
+```
+
+Let us further investigate the correlation among the various variables and how they affect each other.
+
+```{r}
+plt1 <- ggplot(movies_df,aes(x=imdb_rating, y= runtime))+geom_point() + stat_smooth(method = "lm", evel=0.95)+ggtitle("runtime vs imdb rating")
+plt2 <- ggplot(movies_df,aes(x=audience_score, y=imdb_rating))+geom_point() + stat_smooth(method = "lm", level=0.95)+ggtitle("imdb rating vs audience score")
+plt3 <- ggplot(movies_df, aes(x=audience_score,y=critics_score))+geom_point()+stat_smooth(method="lm", level=0.95)+ggtitle("critics_score vs audience_score")
+plt4 <-ggplot(movies_df, aes(x= critics_score, y=imdb_rating))+geom_point()+stat_smooth(method="lm", level=0.95) + ggtitle("imdb_rating vs critics_score")
+
+grid.arrange(plt1, plt2,plt3, plt4, ncol=2)
+
+```
+
+Let us create the correlation matrix
+
+```{r}
+
+isNumeric <- sapply(tbl_df(movies_df), is.numeric)
+cm_mov <- select(movies_df,which(isNumeric)) %>% select(-contains("_rel_")) %>% cor(use = "complete.obs")
+corrplot(cm_mov, method="shade", cl.pos = "n", addCoef.col = "black")
+
+```
+
+The correlation matrix shown above indicates that our response variable - imdb_rating - has strong positive correlation with the other scores, and less so with other selected numeric variables
+
+* * *
+
+## Part 4: Modeling
+
+We will using a multiple regression to fit a model that will predict movie popularity. It starts with the full model as defined above, and will use a backward stepwise regression to arrive at a parsimonious model. Before performing the stepwise analysis, several variables were manually removed from the dataset. 
+Variables like Number of votes(replaced with log votes), IMDB and Rotten Tomatoes URLs, Studio, Movie title, director, actors, Release day, Audience rating  where removed to simplify the process as they are either insignificant to the analysis or contain irrelevant information.
+Additionally audience rating and critics rating variables are removed as these are categorical variables.
+
+```{r}
+movies_new = select(movies_df, -audience_rating, -critics_rating)
+names(movies_new)
+
+```
+All other variables have been considered as shown above. 
+
+```{r}
+fit1 <-lm(imdb_rating ~ ., data=movies_new)
+summary(fit1)
+
+fit2<- step(fit1, direction = "backward", trace = FALSE)
+summary(fit2)
+
+anova(fit2)
+
+```
+
+This new model uses only 5 variables for a similar adjust R^2, and the ANOVA table confirms that all of them are significant.
+Hence from the model we can see that these coefficients have significant influence on the imdb_rating.
+
+
+
+```{r}
+ggplot(data = fit2, aes(x = .resid)) +
+  geom_histogram(binwidth = 1, fill='white', color='black') +
+  xlab("Residuals")
+
+ggplot(data = fit2, aes(x = .fitted, y = .resid)) +
+  geom_point() +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals")
+
+ggplot(data = fit2, aes(sample = .resid)) +
+  stat_qq()
+
+```
+
+ 
+When looking at the plots above, we notice some potential heteroscedasticity in the critics scores and to a smaller degree in the audience score as well. This may be a factor of the sample collection.
+Also, the same anomaly shows up on the histogram of the residuals plot and on the normal QQ-plot.
+
+ 
+* * *
+
+## Part 5: Prediction
+
+The movie chose was Deadpool(2016).
+Information extracted from imdb and rotten tomatoes websites respectively.
+Note: no.of votes are tabulated from us and non-us numbers of users.
+
+```{r}
+mov_pr<- data.frame(genre="Drama"
+                    ,runtime=117
+                    ,critics_score=85
+                    ,audience_score=90
+                    ,log_votes = log(405888))
+pr <- predict(fit2, newdata=mov_pr, interval="confidence")
+pr
+
+```
+
+The prediction is 7.9 close to the actual 8. Our model is 95% confident that the rating for the movies lies between 7.82 and 8.00836.
+
+* * *
+
+## Part 6: Conclusion
+
+Hence from the model we can predict the imdb rating using the 5 significant variables from a set of 17 variables. Paramount Pictures can make use of this data while planning future films.
+
+
+There are potential shortcomings in these kinds of models, that is the predictive power is limited because the sample data is not representative. A larger number of observation that capture more variability in the population data in our data set is required to have a better measure of the models accuracy.
+Also there might be additional variables like if the movie has a sequel etc, would contribute to the accuracy of the model as well.
+
+## Part 7: Referrences
+
+https://stackoverflow.com
+David M Diez, Christopher D Barr and Mine Cetinkaya-Rundel. “OpenIntro Statistics, Third Edition”. (2016).
+“Statistics with R Specialization”, by Duke University on Coursera - (ongoing)
+https://rpubs.com/Shobha_r/311126
+https://www.imdb.com/title/tt1431045/
+https://www.rottentomatoes.com/m/deadpool
